@@ -1,0 +1,199 @@
+classes
+Book.cs
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+
+namespace cart.App_Code
+{
+    public class Book
+    {
+ 
+    public int Id { get; set; }
+        public decimal Price { get; set; }
+        public string Description { get; set; }
+
+        public Book(int id)
+        {
+            this.Id = id;
+            switch (id)
+            {
+                case 1:
+                    this.Price = 19.95m;
+                    this.Description = "Shoes";
+                    break;
+                case 2:
+                    this.Price = 9.95m;
+                    this.Description = "Shirt";
+                    break;
+                case 3:
+                    this.Price = 14.95m;
+                    this.Description = "Pants";
+                    break;
+            }
+        }
+
+    }
+}
+
+---------------------------------------
+
+FavItem.cs
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+
+namespace cart.App_Code
+{
+    public class FavItem : IEquatable<FavItem> {
+        #region Properties
+
+        // A place to store the quantity in the cart
+        // This property has an implicit getter and setter.
+        public int Quantity { get; set; }
+
+        private int _productId;
+        public int ProductId
+        {
+            get { return _productId; }
+            set
+            {
+                // To ensure that the Prod object will be re-created
+                _product = null;
+                _productId = value;
+            }
+        }
+
+        private Book _product = null;
+        public Book Prod
+        {
+            get
+            {
+                // Lazy initialization - the object won't be created until it is needed
+                if (_product == null)
+                {
+                    _product = new Book(ProductId);
+                }
+                return _product;
+            }
+        }
+
+        public string Description
+        {
+            get { return Prod.Description; }
+        }        
+
+        #endregion
+
+        // CartItem constructor just needs a productId
+        public FavItem(int productId)
+        {
+            this.ProductId = productId;
+        }
+
+        /**
+         * Equals() - Needed to implement the IEquatable interface
+         *    Tests whether or not this item is equal to the parameter
+         *    This method is called by the Contains() method in the List class
+         *    We used this Contains() method in the ShoppingCart AddItem() method
+         */
+        public bool Equals(FavItem item)
+        {
+            return item.ProductId == this.ProductId;
+        }
+    }
+}
+-------------------------------------------------------------------
+
+Favorite.cs
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+
+namespace cart.App_Code
+{
+    public class Favorite
+    {
+        #region Properties
+
+        public List<FavItem> Items { get; private set; }
+
+        #endregion
+
+        #region Singleton Implementation
+
+
+
+        // Readonly properties can only be set in initialization or in a constructor
+        public static readonly Favorite Instance;
+
+        // The static constructor is called as soon as the class is loaded into memory
+        static Favorite()
+        {
+            // If the cart is not in the session, create one and put it there
+            // Otherwise, get it from the session
+            if (HttpContext.Current.Session["ASPNETFavorite"] == null)
+            {
+                Instance = new Favorite();
+                Instance.Items = new List<FavItem>();
+                HttpContext.Current.Session["ASPNETFavorite"] = Instance;
+            }
+            else
+            {
+                Instance = (Favorite)HttpContext.Current.Session["ASPNETFavorite"];
+            }
+        }
+
+        // A protected constructor ensures that an object can't be created from outside
+        protected Favorite() { }
+
+        #endregion
+
+        #region Item Modification Methods
+        /**
+         * AddItem() - Adds an item to the favorites list 
+         */
+        public void AddItem(int productId)
+        {
+            // Create a new item to add to the cart
+            FavItem newItem = new FavItem(productId);
+
+            // If this item already exists in our list of items, increase the quantity
+            // Otherwise, add the new item to the list
+            if (Items.Contains(newItem))
+            {
+                foreach (FavItem item in Items)
+                {
+                    if (item.Equals(newItem))
+                    {
+                        item.Quantity++;
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                newItem.Quantity = 1;
+                Items.Add(newItem);
+            }
+        }        
+
+        /**
+         * RemoveItem() - Removes an item from the favorite list
+         */
+        public void RemoveItem(int productId)
+        {
+            FavItem removedItem = new FavItem(productId);
+            Items.Remove(removedItem);
+        }
+        #endregion
+
+        
+    }
+}
